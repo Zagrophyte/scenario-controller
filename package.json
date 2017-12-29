@@ -1,0 +1,21 @@
+{
+  "name": "scenario-service",
+  "version": "1.0.0",
+  "description": "An MQTT-based service for coordinating escape room gameplay and commands.",
+  "main": "index.js",
+  "dependencies": {
+    "mqtt": "^2.15.0",
+    "node-omxplayer": "^0.6.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mqtt",
+    "game",
+    "scenario"
+  ],
+  "author": "Travis Rosenbaum",
+  "license": "MIT"
+}
