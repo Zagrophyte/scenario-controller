@@ -1,19 +1,23 @@
-/************************************/
-// Options
-var videoSource = "/home/pi/big_buck_bunny.mp4"
-var mqttServer = "192.168.1.7"
-/************************************/
+/*****************************************/
+/* Scenario Server                      */
+/* By: Travis Rosenbaum                */
+/* TRosenbaum@gmail.com               */
+/*************************************/
 
+var config = require('config').get("ScenarioSettings");
 var mqtt = require('mqtt');
 var omx = require('node-omxplayer');
 
-var player = omx(videoSource, "both", false);
+var player = omx();
+
+var isPaused = false;
 
 console.log("Starting Scenario Service.");
-var client  = mqtt.connect("mqtt://" + mqttServer);
+console.log(config);
+var client  = mqtt.connect(config.mqttServer);
  
 client.on('connect', function () {
-    console.log("Connected to MQTT Broker at " + mqttServer);    
+    console.log("Connected to MQTT Broker at " + config.mqttServer);
     client.publish('scenario/status', 'Connected');
     client.subscribe('scenario/control');
     client.subscribe('video/control');
@@ -66,61 +70,69 @@ client.on('message', function (topic, message) {
             console.log("Video Command: " + command);
             switch (command) {
                 case "restart":
-                    player.newSource(videoSource);
+                    player.newSource(config.videoSource.source, config.videoSource.output, config.videoSource.loop, config.videoSource.initialVolume);
+                    isPaused = false;
                     break;
 
                 case "play":
-                    if(player.running) 
+                    if(player.running)
                     {
-                        player.play();
+                        if (isPaused) {
+                            player.play();
+                            isPaused = false;
+                        }
                     }
                     else
-                    { 
-                        player.newSource(videoSource);
+                    {
+                        player.newSource(config.videoSource.source, config.videoSource.output, config.videoSource.loop, config.videoSource.initialVolume);
                     }
                     break;
 
                 case "pause":
-                    if(player.running) 
+                    if(player.running)
                     {
-                        player.pause();
+                        if (!isPaused) {
+                            player.pause();
+                            isPaused = true;
+                        }
                     }
                     else
-                    { 
+                    {
                         console.log("Cannot pause: Player not running.");
                     }
                     break;
-                    
+
                 case "stop":
                 case "quit":
-                    if(player.running) 
+                    if(player.running)
                     {
                         player.quit();
                     }
                     else
-                    { 
+                    {
                         console.log("Cannot quit: Player not running.");
                     }
+                    isPaused = false;
                     break;
 
                 case "volup":
-                    if(player.running) 
+                    if(player.running)
                     {
                         player.volUp();
                     }
                     else
-                    { 
+                    {
                         console.log("Cannot volUp: Player not running.");
                     }
                     break;
 
                 case "voldown":
-                    if(player.running) 
+                    if(player.running)
                     {
                         player.volDown();
                     }
                     else
-                    { 
+                    {
                         console.log("Cannot volDown: Player not running.");
                     }
                     break;
@@ -134,7 +146,7 @@ client.on('message', function (topic, message) {
         default: // Unknown topic
             console.log("Unsupported topic '" + topic + "'.")
             break;
-    }    
+    }
 });
 
 process.on('uncaughtException', function (err) {
@@ -146,8 +158,12 @@ process.on('uncaughtException', function (err) {
     process.exit(-1);
 });
 
-process.on('SIGINT',function(){
-    player.quit();
+process.on('SIGINT',function() {
+    if(player.running)
+    {
+        player.quit();
+    }
+
     client.end();
     process.exit();
  });

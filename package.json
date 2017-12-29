@@ -4,6 +4,7 @@
   "description": "An MQTT-based service for coordinating escape room gameplay and commands.",
   "main": "index.js",
   "dependencies": {
+    "config": "^1.29.0",
     "mqtt": "^2.15.0",
     "node-omxplayer": "^0.6.1"
   },
