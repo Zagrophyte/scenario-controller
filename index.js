@@ -4,7 +4,6 @@
 /* TRosenbaum@gmail.com               */
 /*************************************/
 
-var color = require('onecolor');
 var config = require('config').get("ScenarioSettings");
 var mqtt = require('mqtt');
 var omx = require('node-omxplayer');
@@ -67,28 +66,31 @@ client.on('message', function (topic, message) {
 	switch (topic) {
         case "global/lights":
             try {
-            // This subscription is primarily to relay color commands to the Philips Hue lighting systems
-            console.log("Global Light Command: " + command);
-            var rgbcolor = "rgb(" + command + ")";
-            var parsedColor = color(rgbcolor);
-            console.log(parsedColor);
-            var colorState = lightState.create().on().rgb(parsedColor.red(),parsedColor.green(),parsedColor.blue());
-            hueApi.lights(function(err, lights) {
-                lights = lights.lights;
-                if (err) {
-                    displayResult("HUE Error" + err)
+                // This subscription is primarily to relay color commands to the Philips Hue lighting systems
+                console.log("Global Light Command: " + command);
+                var colors = command.split(',');
+                if (colors.length == 3) {
+                    var colorState = lightState.create().on().brightness(100).rgb(parseInt(colors[0]),parseInt(colors[1]),parseInt(colors[2]));
+                    hueApi.lights(function(err, lights) {
+                        lights = lights.lights;
+                        if (err) {
+                            displayResult("HUE Error" + err)
+                        }
+                        else {
+                            for (var i = 0, len = lights.length; i < len; i++) {
+                                hueApi.setLightState(parseInt(lights[i].id), colorState, function(err, result) {
+                                    if (err) {
+                                        displayResult("HUE Error: " + err);
+                                    }
+                                    //displayResult(result);
+                                });
+                            }
+                        }
+                    });
                 }
                 else {
-                    for (var i = 0, len = lights.length; i < len; i++) {
-                        hueApi.setLightState(parseInt(lights[i].id), colorState, function(err, result) {
-                            if (err) {
-                                displayResult("HUE Error: " + err);
-                            }
-                            //displayResult(result);
-                        });
-                    }
+                    console.log("Invalid Color String: " + command);
                 }
-            });
             }
             catch (err) {
                 displayResult("HUE Error: " + err);

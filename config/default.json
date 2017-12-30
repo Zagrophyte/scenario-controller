@@ -10,7 +10,7 @@
             "source": "/home/pi/Videos/SpaceBusMissionIntel.mp4",
             "output": "both",
             "loop": false,
-            "initialVolume": 0
+            "initialVolume": -1000
         }
     }
 }
