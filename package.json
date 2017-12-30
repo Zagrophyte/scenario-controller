@@ -6,7 +6,10 @@
   "dependencies": {
     "config": "^1.29.0",
     "mqtt": "^2.15.0",
-    "node-omxplayer": "^0.6.1"
+    "node-hue-api": "^2.4.2",
+    "node-omxplayer": "^0.6.1",
+    "onecolor": "^3.0.5",
+    "request": "^2.83.0"
   },
   "devDependencies": {},
   "scripts": {

@@ -4,45 +4,119 @@
 /* TRosenbaum@gmail.com               */
 /*************************************/
 
+var color = require('onecolor');
 var config = require('config').get("ScenarioSettings");
 var mqtt = require('mqtt');
 var omx = require('node-omxplayer');
+var hue = require("node-hue-api");
+var hueApi = hue.HueApi(config.hueHost, config.hueUser);
+var lightState = hue.lightState;
+var request = require('request');
 
 var player = omx();
-
 var isPaused = false;
 
+var displayResult = function(result) {
+    console.log(JSON.stringify(result, null, 2));
+};
+
+let setWebRelayState = function(state) {
+    try {
+        // WebRelay Reset
+        var url = "http://" + config.webRelayHost + "/state.xml?relayState=" + state;
+        request.get(url, 
+            function(err, resp, body){
+                if (err) {
+                    if (err.code && err.code == "HPE_INVALID_CONSTANT") {
+                        // Expected error, WebRelay returns no headers on response.
+                    }
+                    else {
+                        displayResult(err);
+                    }
+                }
+            }).auth(config.webRelayUser, config.webRelayPass, true);
+        } 
+    catch (err) { 
+        displayResult(err); 
+    }
+};
+
+hueApi.config(function(err, config) {
+    if (err) {
+        displayResult(err);
+    }
+    else {
+        //displayResult(config);
+    }
+});
+
 console.log("Starting Scenario Service.");
-console.log(config);
-var client  = mqtt.connect(config.mqttServer);
- 
+//console.log(config);
+var client  = mqtt.connect(config.mqttHost);
+
 client.on('connect', function () {
-    console.log("Connected to MQTT Broker at " + config.mqttServer);
+    console.log("Connected to MQTT Broker at " + config.mqttHost);
     client.publish('scenario/status', 'Connected');
     client.subscribe('scenario/control');
     client.subscribe('video/control');
+    client.subscribe('global/lights');
 });
 
 client.on('message', function (topic, message) {
     var command = message.toString();
 	switch (topic) {
-
+        case "global/lights":
+            try {
+            // This subscription is primarily to relay color commands to the Philips Hue lighting systems
+            console.log("Global Light Command: " + command);
+            var rgbcolor = "rgb(" + command + ")";
+            var parsedColor = color(rgbcolor);
+            console.log(parsedColor);
+            var colorState = lightState.create().on().rgb(parsedColor.red(),parsedColor.green(),parsedColor.blue());
+            hueApi.lights(function(err, lights) {
+                lights = lights.lights;
+                if (err) {
+                    displayResult("HUE Error" + err)
+                }
+                else {
+                    for (var i = 0, len = lights.length; i < len; i++) {
+                        hueApi.setLightState(parseInt(lights[i].id), colorState, function(err, result) {
+                            if (err) {
+                                displayResult("HUE Error: " + err);
+                            }
+                            //displayResult(result);
+                        });
+                    }
+                }
+            });
+            }
+            catch (err) {
+                displayResult("HUE Error: " + err);
+            }
+            break;
         case "scenario/control":
             console.log("Scenario Command: " + command);
             switch (command) {
+                case "staging":
+                    client.publish("global/lights", "255,255,255");
+                    client.publish("video/control", "stop");
+                    setWebRelayState(0);
+                    break;
                 case "reset":
                     client.publish("global/lights", "255,255,255");
                     client.publish("video/control", "stop");
+                    setWebRelayState(1);
                     break;
                 case "start":
                     // TODO: Timers
+                    setWebRelayState(1);
                     client.publish("global/lights", "255,255,255");
                     client.publish("video/control", "restart");
                     break;
 
                 case "pause":
                     client.publish("video/control", "pause");
-                    client.publish("global/lights", "255,255,0");
+                    client.publish("global/lights", "0,0,255");
                     break;
 
                 case "resume":
