@@ -99,6 +99,11 @@ client.on('message', function (topic, message) {
         case "scenario/control":
             console.log("Scenario Command: " + command);
             switch (command) {
+                case "shutdown":
+                    client.publish("global/lights", "0,0,0");
+                    client.publish("video/control", "stop");
+                    setWebRelayState(0);
+                    break;
                 case "staging":
                     client.publish("global/lights", "255,255,255");
                     client.publish("video/control", "stop");
