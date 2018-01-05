@@ -70,7 +70,18 @@ client.on('message', function (topic, message) {
                 console.log("Global Light Command: " + command);
                 var colors = command.split(',');
                 if (colors.length == 3) {
-                    var colorState = lightState.create().on().brightness(100).rgb(parseInt(colors[0]),parseInt(colors[1]),parseInt(colors[2]));
+                    var colorState = undefined;
+                    var redC = parseInt(colors[0]);
+                    var greenC = parseInt(colors[1]);
+                    var blueC = parseInt(colors[2]);
+                    if (redC + greenC + blueC <= 0) { 
+                        // Off
+                        colorState =  lightState.create().off();
+                    }
+                    else {
+                        // Color 
+                        colorState  = lightState.create().on().brightness(100).rgb(redC, greenC, blueC);
+                    }
                     hueApi.lights(function(err, lights) {
                         lights = lights.lights;
                         if (err) {
@@ -141,6 +152,8 @@ client.on('message', function (topic, message) {
                     client.publish("video/control", "stop");
                     client.publish("global/lights", "255,0,0");
                     break;
+                case "keepopen":
+                    client.publish("airlock/relays/1", "-1");
 
                 default:
                     console.log("Unsupported scenario command '" + command + "'.");
