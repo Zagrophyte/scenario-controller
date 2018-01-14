@@ -122,13 +122,17 @@ client.on('message', function (topic, message) {
             switch (command) {
 
                 case "lightson":
-                    client.publish("global/lights", "255,255,255");
                     client.publish("sound/control", "powerup");
+                    setTimeout(function() {
+                        client.publish("global/lights", "255,255,255");
+                    }, 2000);
                     break;
 
                 case "lightsoff":
-                    client.publish("global/lights", "0,0,0");
                     client.publish("sound/control", "powerdown");
+                    setTimeout(function() {
+                        client.publish("global/lights", "0,0,0");
+                    }, 2000);
                     break;
 
                 case "staging":
