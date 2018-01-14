@@ -9,14 +9,17 @@
         "videoSource": {
             "source": "/home/pi/Videos/SpaceBusMissionIntel.mp4"
         },
-        "powerDownSoundSource": {
+        "powerDownSound": {
             "source": "/home/pi/Sounds/PowerDown.m4a"
         },
-        "powerUpSoundSource": {
+        "powerUpSound": {
             "source": "/home/pi/Sounds/PowerUp.m4a"
         },
-        "endSuccessSoundSource": {
-            "source": "/home/pi/Sound/EndSuccess.m4a"
+        "endSuccessSound": {
+            "source": "/home/pi/Sounds/EndSuccess.m4a"
+        },
+        "endFailureSound": {
+            "source": "/home/pi/Sounds/EndFailure.m4a"
         }
     }
 }
