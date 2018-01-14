@@ -5,15 +5,29 @@
 /*************************************/
 
 var config = require('config').get("ScenarioSettings");
+
 var mqtt = require('mqtt');
-var omx = require('node-omxplayer');
+var omx = require('omx-layers');
 var hue = require("node-hue-api");
 var hueApi = hue.HueApi(config.hueHost, config.hueUser);
 var lightState = hue.lightState;
 var request = require('request');
 
-var player = omx();
-var isPaused = false;
+var isMissionActive = false;
+var videoPlayer = new omx({
+    audioOutput: 'both',
+    blackBackground: false,
+    disableKeys: true,
+    disableOnScreenDisplay: true,
+    layer: 0
+});
+var soundPlayer = new omx({
+    audioOutput: 'both',
+    blackBackground: false,
+    disableKeys: true,
+    disableOnScreenDisplay: true,
+    layer: 1
+});
 
 var displayResult = function(result) {
     console.log(JSON.stringify(result, null, 2));
@@ -55,9 +69,10 @@ var client  = mqtt.connect(config.mqttHost);
 
 client.on('connect', function () {
     console.log("Connected to MQTT Broker at " + config.mqttHost);
-    client.publish('scenario/status', 'Connected');
+    client.publish('status/scenario', 'Connected');
     client.subscribe('scenario/control');
     client.subscribe('video/control');
+    client.subscribe('sound/control');
     client.subscribe('global/lights');
 });
 
@@ -107,25 +122,33 @@ client.on('message', function (topic, message) {
                 displayResult("HUE Error: " + err);
             }
             break;
+
         case "scenario/control":
             console.log("Scenario Command: " + command);
             switch (command) {
+
                 case "lightson":
                     client.publish("global/lights", "255,255,255");
+                    client.publish("sound/control", "powerup");
                     break;
+
                 case "lightsoff":
                     client.publish("global/lights", "0,0,0");
+                    client.publish("sound/control", "powerdown");
                     break;
+
                 case "staging":
                     client.publish("global/lights", "255,255,255");
                     client.publish("video/control", "stop");
                     setWebRelayState(0);
                     break;
+
                 case "reset":
                     client.publish("global/lights", "255,255,255");
                     client.publish("video/control", "stop");
                     setWebRelayState(1);
                     break;
+
                 case "start":
                     // TODO: Timers
                     setWebRelayState(1);
@@ -134,6 +157,7 @@ client.on('message', function (topic, message) {
                     break;
 
                 case "pause":
+                    // TODO: Timers
                     client.publish("video/control", "pause");
                     client.publish("global/lights", "0,0,255");
                     break;
@@ -152,8 +176,26 @@ client.on('message', function (topic, message) {
                     client.publish("video/control", "stop");
                     client.publish("global/lights", "255,0,0");
                     break;
+
                 case "keepopen":
                     client.publish("airlock/relays/1", "-1");
+                    break;
+
+                case "open":
+                    client.publish("airlock/relays/1", "1");
+                    break;
+
+                case "close":
+                    client.publish("airlock/relays/1", "0");
+                    break;
+
+                case "safetyoff":
+                    client.publish("airlock/safety", "0");
+                    break;
+
+                case "safetyon":
+                    client.publish("airlock/safety", "1");
+                    break;
 
                 default:
                     console.log("Unsupported scenario command '" + command + "'.");
@@ -165,75 +207,95 @@ client.on('message', function (topic, message) {
             console.log("Video Command: " + command);
             switch (command) {
                 case "restart":
-                    player.newSource(config.videoSource.source, config.videoSource.output, config.videoSource.loop, config.videoSource.initialVolume);
-                    isPaused = false;
+                    videoPlayer.open(config.videoSource.source);
+                    videoPlayer.resume();
                     break;
 
                 case "play":
-                    if(player.running)
-                    {
-                        if (isPaused) {
-                            player.play();
-                            isPaused = false;
+                    videoPlayer.open(config.videoSource.source);
+                    videoPlayer.getPlayStatus().then(function(result) {
+                        if(result == 'playing')
+                        {
+                            // Do Nothing
                         }
-                    }
-                    else
-                    {
-                        player.newSource(config.videoSource.source, config.videoSource.output, config.videoSource.loop, config.videoSource.initialVolume);
-                    }
+                        else if (result == 'paused')
+                        {
+                            videoPlayer.resume();
+                        }
+                        else
+                        {
+                            console.log("Cannot play: Video Player not running. Status: " + result);
+                        }
+                    }).catch(function(err){
+                        console.log("[Play] Cannot check play status: " + err);
+                    });
                     break;
 
                 case "pause":
-                    if(player.running)
-                    {
-                        if (!isPaused) {
-                            player.pause();
-                            isPaused = true;
+                    videoPlayer.getPlayStatus().then(function(result) {
+                        if(result == 'playing')
+                        {
+                            videoPlayer.pause();
                         }
-                    }
-                    else
-                    {
-                        console.log("Cannot pause: Player not running.");
-                    }
+                        else if (result == 'paused')
+                        {
+                            // Do Nothing
+                        }
+                        else
+                        {
+                            console.log("Cannot pause: Video Player not running.");
+                        }
+                    }).catch(function(err){
+                        console.log("[Play] Cannot check play status: " + err);
+                    });
                     break;
 
                 case "stop":
                 case "quit":
-                    if(player.running)
-                    {
-                        player.quit();
-                    }
-                    else
-                    {
-                        console.log("Cannot quit: Player not running.");
-                    }
+                    videoPlayer.getPlayStatus().then(function(result) {
+                        if(result == 'playing')
+                        {
+                            videoPlayer.quit();
+                        }
+                        else if (result == 'paused')
+                        {
+                            videoPlayer.quit();
+                        }
+                        else
+                        {
+                            console.log("Cannot stop: Video Player not running.");
+                        }
+                    }).catch(function(err){
+                        console.log("[Stop] Cannot check play status: " + err);
+                    });
                     isPaused = false;
-                    break;
-
-                case "volup":
-                    if(player.running)
-                    {
-                        player.volUp();
-                    }
-                    else
-                    {
-                        console.log("Cannot volUp: Player not running.");
-                    }
-                    break;
-
-                case "voldown":
-                    if(player.running)
-                    {
-                        player.volDown();
-                    }
-                    else
-                    {
-                        console.log("Cannot volDown: Player not running.");
-                    }
                     break;
 
                 default:
                     console.log("Unsupported video command '" + command + "'.");
+                    break;
+            }
+            break;
+        case "sound/control":
+            console.log("Sound Command: " + command);
+            switch (command) {
+                case "powerdown":
+                    soundPlayer.open(config.powerDownSoundSource.source);
+                    soundPlayer.resume();
+                    break;
+
+                case "powerup":
+                    soundPlayer.open(config.powerUpSoundSource.source);
+                    soundPlayer.resume();;
+                    break;
+
+                case "stop":
+                case "quit":
+                    soundPlayer.quit();
+                    break;
+
+                default:
+                    console.log("Unsupported sound command '" + command + "'.");
                     break;
             }
             break;
@@ -246,17 +308,25 @@ client.on('message', function (topic, message) {
 
 process.on('uncaughtException', function (err) {
     console.trace(err.stack);
-    if(player.running)
+    if(videoPlayer.running)
     {
-        player.quit();
+        videoPlayer.quit();
+    }
+    if(soundPlayer.running)
+    {
+        soundPlayer.quit();
     }
     process.exit(-1);
 });
 
 process.on('SIGINT',function() {
-    if(player.running)
+    if(videoPlayer.running)
     {
-        player.quit();
+        videoPlayer.quit();
+    }
+    if(soundPlayer.running)
+    {
+        soundPlayer.quit();
     }
 
     client.end();

@@ -8,9 +8,18 @@
         "hueUser": "pOhjI9ZmrFCU2Q87gko5YggbTuFMIcTMUZ3NRX-M",
         "videoSource": {
             "source": "/home/pi/Videos/SpaceBusMissionIntel.mp4",
-            "output": "both",
-            "loop": false,
-            "initialVolume": -1000
+        },
+        "videoSource": {
+            "source": "/home/pi/Videos/SpaceBusMissionIntel.mp4",
+        },
+        "powerDownSoundSource": {
+            "source": "/home/pi/Sounds/PowerDown.m4a",
+        },
+        "powerUpSoundSource": {
+            "source": "/home/pi/Sounds/PowerUp.m4a",
+        },
+        "endSuccessSoundSource": {
+            "source": "/home/pi/Sound/EndSuccess.m4a",
         }
     }
 }
