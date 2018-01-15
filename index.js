@@ -20,6 +20,7 @@ function execute(command, callback){
 }
 
 var isPaused = false;
+var canSuccess = true;
 
 var player = omx()
 
@@ -122,6 +123,7 @@ client.on('message', function (topic, message) {
             switch (command) {
 
                 case "lightson":
+                    canSuccess = true;
                     client.publish("sound/control", "powerup");
                     setTimeout(function() {
                         client.publish("global/lights", "255,255,255");
@@ -129,6 +131,7 @@ client.on('message', function (topic, message) {
                     break;
 
                 case "lightsoff":
+                    canSuccess = true;
                     client.publish("sound/control", "powerdown");
                     setTimeout(function() {
                         client.publish("global/lights", "0,0,0");
@@ -136,12 +139,14 @@ client.on('message', function (topic, message) {
                     break;
 
                 case "staging":
+                    canSuccess = true;
                     client.publish("global/lights", "255,255,255");
                     client.publish("video/control", "stop");
                     setWebRelayState(0);
                     break;
 
                 case "reset":
+                    canSuccess = true;
                     client.publish("global/lights", "255,255,255");
                     client.publish("video/control", "stop");
                     setWebRelayState(1);
@@ -149,29 +154,39 @@ client.on('message', function (topic, message) {
 
                 case "start":
                     // TODO: Timers
+                    canSuccess = true;
                     setWebRelayState(1);
                     client.publish("global/lights", "255,255,255");
                     client.publish("video/control", "restart");
                     break;
 
                 case "pause":
+                    canSuccess = false;
                     // TODO: Timers
                     client.publish("video/control", "pause");
                     client.publish("global/lights", "0,0,255");
                     break;
 
                 case "resume":
+                    canSuccess = true;
                     client.publish("video/control", "play");
                     client.publish("global/lights", "255,255,255");
                     break;
 
                 case "endsuccess":
-                    client.publish("video/control", "stop");
-                    client.publish("global/lights", "0,255,0");
-                    client.publish("sound/control", "endsuccess");
+                    if (canSuccess) {
+                        // Re-enable success after 5s (prevents spamming)
+                        setTimeout(function(){canSuccess=true;},5000);
+
+                        client.publish("video/control", "stop");
+                        client.publish("global/lights", "0,255,0");
+                        client.publish("sound/control", "endsuccess");
+                        canSuccess = false;
+                    }
                     break;
 
                 case "endfailure":
+                    canSuccess = true;
                     client.publish("video/control", "stop");
                     client.publish("global/lights", "255,0,0");
                     client.publish("sound/control", "endfailure");
